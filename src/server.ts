@@ -20,6 +20,13 @@ const casos = [
 
 type Caso = (typeof casos)[number];
 
+type EstadoHerramienta = "OK" | "ERROR";
+
+interface HerramientaEjecutada {
+  nombre: string;
+  estado: EstadoHerramienta;
+}
+
 /*
  * MIDDLEWARE
  */
@@ -55,13 +62,16 @@ app.get("/api/health", (_req, res) => {
 /*
  * CHAT LOCAL
  *
- * Por ahora NO utiliza un modelo de IA.
+ * Por ahora no utiliza un modelo de IA.
+ *
+ * Analiza el caso utilizando las herramientas
+ * deterministas del proyecto.
  */
 
 app.post("/api/chat", async (req, res) => {
   try {
     /*
-     * Obtener mensaje.
+     * OBTENER MENSAJE
      */
 
     const mensaje = String(
@@ -69,7 +79,7 @@ app.post("/api/chat", async (req, res) => {
     ).trim();
 
     /*
-     * Validar mensaje.
+     * VALIDAR MENSAJE
      */
 
     if (!mensaje) {
@@ -80,7 +90,7 @@ app.post("/api/chat", async (req, res) => {
     }
 
     /*
-     * Identificar caso.
+     * IDENTIFICAR CASO
      */
 
     const caso = casos.find((item) =>
@@ -103,13 +113,11 @@ app.post("/api/chat", async (req, res) => {
     const casoSeleccionado: Caso = caso;
 
     /*
-     * REGISTRO DE HERRAMIENTAS EJECUTADAS
+     * REGISTRO DE HERRAMIENTAS
      */
 
-    const herramientasEjecutadas: Array<{
-      nombre: string;
-      estado: "OK" | "ERROR";
-    }> = [];
+    const herramientasEjecutadas:
+      HerramientaEjecutada[] = [];
 
     /*
      * 1. LEER SOLICITUD
@@ -181,7 +189,7 @@ app.post("/api/chat", async (req, res) => {
         }));
 
     /*
-     * REVISIÓN HUMANA
+     * DETERMINAR REVISIÓN HUMANA
      */
 
     const requiereRevisionHumana =
@@ -190,7 +198,7 @@ app.post("/api/chat", async (req, res) => {
       solicitud.formato === "portal";
 
     /*
-     * RESPUESTA
+     * RESPUESTA DEL CHAT
      */
 
     return res.json({
@@ -221,7 +229,6 @@ app.post("/api/chat", async (req, res) => {
 
       herramientasEjecutadas,
     });
-
   } catch (error) {
     console.error(
       "Error en /api/chat:",
@@ -235,6 +242,114 @@ app.post("/api/chat", async (req, res) => {
         "Error interno procesando la solicitud.",
     });
   }
+});
+
+/*
+ * CONFIRMACIÓN HUMANA
+ *
+ * Recibe:
+ *
+ * {
+ *   caso: "ec-corp-andina",
+ *   decision: "confirmar"
+ * }
+ *
+ * o:
+ *
+ * {
+ *   caso: "ec-corp-andina",
+ *   decision: "cancelar"
+ * }
+ *
+ * Confirmar una revisión NO completa datos faltantes,
+ * NO inventa soportes y NO ejecuta acciones externas.
+ */
+
+app.post("/api/confirmacion", (req, res) => {
+  /*
+   * OBTENER DATOS
+   */
+
+  const caso = String(
+    req.body?.caso ?? "",
+  ).trim();
+
+  const decision = String(
+    req.body?.decision ?? "",
+  ).trim();
+
+  /*
+   * VALIDAR CASO
+   */
+
+  const casoValido = casos.find(
+    (item) => item === caso,
+  );
+
+  if (!casoValido) {
+    return res.status(400).json({
+      ok: false,
+
+      error:
+        "El caso indicado no es válido.",
+
+      casosDisponibles: casos,
+    });
+  }
+
+  /*
+   * VALIDAR DECISIÓN
+   */
+
+  if (
+    decision !== "confirmar" &&
+    decision !== "cancelar"
+  ) {
+    return res.status(400).json({
+      ok: false,
+
+      error:
+        "La decisión debe ser 'confirmar' o 'cancelar'.",
+    });
+  }
+
+  /*
+   * CONFIRMAR
+   */
+
+  if (decision === "confirmar") {
+    return res.json({
+      ok: true,
+
+      caso: casoValido,
+
+      decision: "confirmar",
+
+      estado:
+        "REVISION_HUMANA_CONFIRMADA",
+
+      mensaje:
+        "La revisión humana fue confirmada. El flujo puede continuar sin completar ni inventar los datos faltantes.",
+    });
+  }
+
+  /*
+   * CANCELAR
+   */
+
+  return res.json({
+    ok: true,
+
+    caso: casoValido,
+
+    decision: "cancelar",
+
+    estado:
+      "CANCELADO_POR_USUARIO",
+
+    mensaje:
+      "El usuario canceló la continuación del flujo.",
+  });
 });
 
 /*
@@ -256,5 +371,9 @@ app.listen(PORT, () => {
 
   console.log(
     `Health check en http://localhost:${PORT}/api/health`,
+  );
+
+  console.log(
+    `Confirmación humana en http://localhost:${PORT}/api/confirmacion`,
   );
 });
