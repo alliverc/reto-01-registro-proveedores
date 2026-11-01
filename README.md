@@ -4,6 +4,12 @@ Solución desarrollada para el **Reto 01 - Registro como Proveedor**.
 
 El proyecto implementa un agente conversacional capaz de interpretar solicitudes de registro de proveedores, consultar un repositorio maestro, mapear campos solicitados por diferentes clientes, validar documentación, detectar información faltante y preparar los entregables correspondientes.
 
+## Demo pública
+
+La aplicación se encuentra desplegada en Render:
+
+https://reto-01-registro-proveedores-ghdr.onrender.com
+
 ## Funcionalidades
 
 La solución permite:
