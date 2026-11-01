@@ -1,13 +1,23 @@
 {
   "name": "reto-01",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Agente conversacional para automatizar el registro como proveedor - Reto 01",
+  "main": "dist/src/server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "tsx src/server.ts",
+    "start": "tsx src/server.ts",
+    "demo": "tsx demo.ts",
+    "check": "tsc --noEmit",
+    "build": "tsc"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "typescript",
+    "agent",
+    "gemini",
+    "proveedores",
+    "reto-01"
+  ],
+  "author": "Henry Allyver Fonseca Calderon",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
