@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agente de Registro de Proveedores</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+
+<body>
+
+  <div class="app-shell">
+
+    <header class="topbar">
+
+      <div class="brand">
+        <span class="tag">RETO 01</span>
+        <h1>Registro de Proveedores</h1>
+        <p>Agente conversacional para validación y preparación documental</p>
+      </div>
+
+      <div class="backend-status">
+        <span class="status-dot"></span>
+        Backend activo
+      </div>
+
+    </header>
+
+
+    <div class="workspace">
+
+      <aside class="sidebar">
+
+        <h2>Casos disponibles</h2>
+
+        <p class="sidebar-description">
+          Selecciona un caso para analizarlo.
+        </p>
+
+
+        <button type="button" class="case-card" data-case="co-industrias-delta">
+          <span class="flag">CO</span>
+          <span class="case-info">
+            <strong>Industrias Delta</strong>
+            <small>Formulario XLSX</small>
+          </span>
+        </button>
+
+
+        <button type="button" class="case-card" data-case="ec-corp-andina">
+          <span class="flag">EC</span>
+          <span class="case-info">
+            <strong>Corporación Andina</strong>
+            <small>Formulario PDF</small>
+          </span>
+        </button>
+
+
+        <button type="button" class="case-card" data-case="hn-agroexport-sula">
+          <span class="flag">HN</span>
+          <span class="case-info">
+            <strong>Agroexport Sula</strong>
+            <small>Formulario XLSX</small>
+          </span>
+        </button>
+
+
+        <button type="button" class="case-card" data-case="pa-logistica-istmo">
+          <span class="flag">PA</span>
+          <span class="case-info">
+            <strong>Logística del Istmo</strong>
+            <small>Portal manual</small>
+          </span>
+        </button>
+
+
+        <div class="tools-panel">
+          <h3>Herramientas disponibles</h3>
+
+          <ul>
+            <li>Leer solicitud</li>
+            <li>Mapear campos</li>
+            <li>Validar soportes</li>
+            <li>Generar formulario</li>
+            <li>Armar paquete</li>
+          </ul>
+        </div>
+
+      </aside>
+
+
+      <main class="chat-panel">
+
+        <div class="chat-title">
+
+          <span class="agent-icon">IA</span>
+
+          <div>
+            <strong>Agente de proveedores</strong>
+            <p>Listo para analizar una solicitud</p>
+          </div>
+
+        </div>
+
+
+        <div id="messages" class="messages">
+
+          <div class="message assistant-message">
+
+            <div class="avatar">IA</div>
+
+            <div class="bubble">
+
+              <strong>Hola, soy el agente de registro de proveedores.</strong>
+
+              <p>
+                Puedo analizar cualquiera de los cuatro casos disponibles del Reto 01.
+              </p>
+
+              <p>
+                Selecciona un caso del panel izquierdo o escribe una solicitud para comenzar.
+              </p>
+
+              <div class="example-command">
+                Analiza el caso co-industrias-delta
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+
+
+        <div id="processing" class="processing hidden">
+          <span class="spinner"></span>
+          Analizando solicitud y ejecutando herramientas...
+        </div>
+
+
+        <form id="chat-form" class="chat-form">
+
+          <input
+            id="message-input"
+            type="text"
+            placeholder="Ejemplo: Analiza el caso ec-corp-andina"
+            autocomplete="off"
+            required
+          >
+
+          <button id="send-button" type="submit">
+            Enviar
+          </button>
+
+        </form>
+
+      </main>
+
+    </div>
+
+  </div>
+
+
+  <script src="/app.js"></script>
+
+</body>
+</html>
