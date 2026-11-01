@@ -48,7 +48,7 @@ main().catch((error) => {
   process.exit(1);
 });
 */
-import {
+/*import {
   proveedor_generar_pdf,
 } from "./tools/proveedor.js";
 
@@ -59,6 +59,41 @@ async function main() {
 
   console.log("PDF generado correctamente:");
   console.log(archivo);
+}
+
+main().catch((error) => {
+  console.error("Error:", error);
+  process.exit(1);
+});*/
+
+/*import {
+  proveedor_preparar_portal,
+} from "./tools/proveedor.js";
+
+async function main() {
+  const archivo = await proveedor_preparar_portal({
+    caso: "pa-logistica-istmo",
+  });
+
+  console.log("Preparación de portal generada:");
+  console.log(archivo);
+}
+
+main().catch((error) => {
+  console.error("Error:", error);
+  process.exit(1);
+});*/
+import {
+  proveedor_armar_paquete,
+} from "./tools/proveedor.js";
+
+async function main() {
+  const paquete = await proveedor_armar_paquete({
+    caso: "co-industrias-delta",
+  });
+
+  console.log("Paquete generado correctamente:");
+  console.log(paquete);
 }
 
 main().catch((error) => {

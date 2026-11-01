@@ -4,6 +4,8 @@ import {
   proveedor_validar_soportes,
   proveedor_generar_formulario,
   proveedor_generar_pdf,
+  proveedor_preparar_portal,
+  proveedor_armar_paquete,
 } from "./src/tools/proveedor.js";
 
 const casos = [
@@ -88,10 +90,10 @@ async function main() {
     }
 
     /*
-     * 4. GENERAR FORMULARIO
+     * 4. GENERAR SALIDA DEL CASO
      */
 
-    // Colombia y Honduras utilizan XLSX
+    // Colombia y Honduras generan XLSX.
     if (
       caso === "co-industrias-delta" ||
       caso === "hn-agroexport-sula"
@@ -105,7 +107,7 @@ async function main() {
       console.log(archivoGenerado);
     }
 
-    // Ecuador utiliza PDF
+    // Ecuador genera PDF.
     else if (caso === "ec-corp-andina") {
       const archivoGenerado =
         await proveedor_generar_pdf({
@@ -116,12 +118,30 @@ async function main() {
       console.log(archivoGenerado);
     }
 
-    // Panamá utiliza portal
+    // Panamá prepara los datos para carga manual.
     else if (caso === "pa-logistica-istmo") {
-      console.log(
-        "\nPortal: preparación pendiente",
-      );
+      const archivoGenerado =
+        await proveedor_preparar_portal({
+          caso,
+        });
+
+      console.log("\nPreparación de portal generada:");
+      console.log(archivoGenerado);
     }
+
+    /*
+     * 5. ARMAR PAQUETE FINAL
+     *
+     * Se ejecuta después de generar el archivo principal
+     * porque proveedor_armar_paquete necesita copiarlo.
+     */
+    const carpetaPaquete =
+      await proveedor_armar_paquete({
+        caso,
+      });
+
+    console.log("\nPaquete final generado:");
+    console.log(carpetaPaquete);
   }
 
   console.log("\n\n========================================");

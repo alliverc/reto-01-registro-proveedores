@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import {copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { z } from "zod";
 import ExcelJS from "exceljs";
@@ -598,4 +598,248 @@ export async function proveedor_generar_pdf(
   );
 
   return rutaSalida;
+}
+
+const PrepararPortalSchema = z.object({
+  caso: z.literal("pa-logistica-istmo"),
+});
+
+export type PrepararPortalInput = z.infer<
+  typeof PrepararPortalSchema
+>;
+
+export async function proveedor_preparar_portal(
+  input: PrepararPortalInput,
+): Promise<string> {
+  const datos = PrepararPortalSchema.parse(input);
+
+  const campos = await proveedor_mapear_campos({
+    caso: datos.caso,
+  });
+
+  const soportes = await proveedor_validar_soportes({
+    caso: datos.caso,
+  });
+
+  const carpetaSalida = join(
+    process.cwd(),
+    "out",
+    datos.caso,
+  );
+
+  await mkdir(carpetaSalida, {
+    recursive: true,
+  });
+
+  const rutaSalida = join(
+    carpetaSalida,
+    "portal-preparado.json",
+  );
+
+  const resultado = {
+    caso: datos.caso,
+    estado: "PREPARADO_PARA_CARGA_MANUAL",
+
+    campos: campos.map((campo) => ({
+      etiqueta: campo.etiqueta,
+      valor: campo.valor,
+      encontrado: campo.encontrado,
+    })),
+
+    soportes: soportes.map((soporte) => ({
+      tipo: soporte.tipo,
+      estado: soporte.estado,
+      archivo: soporte.archivo,
+      vigenciaHasta: soporte.vigenciaHasta,
+    })),
+
+    requiereConfirmacionHumana: true,
+  };
+
+  await writeFile(
+    rutaSalida,
+    JSON.stringify(resultado, null, 2),
+    "utf-8",
+  );
+
+  return rutaSalida;
+}
+const ArmarPaqueteSchema = z.object({
+  caso: z.enum([
+    "co-industrias-delta",
+    "ec-corp-andina",
+    "hn-agroexport-sula",
+    "pa-logistica-istmo",
+  ]),
+});
+
+export type ArmarPaqueteInput = z.infer<
+  typeof ArmarPaqueteSchema
+>;
+
+export async function proveedor_armar_paquete(
+  input: ArmarPaqueteInput,
+): Promise<string> {
+  const datos = ArmarPaqueteSchema.parse(input);
+
+  const campos = await proveedor_mapear_campos({
+    caso: datos.caso,
+  });
+
+  const soportes = await proveedor_validar_soportes({
+    caso: datos.caso,
+  });
+
+  const solicitud = await proveedor_leer_solicitud({
+    caso: datos.caso,
+  });
+
+  const carpetaCaso = join(
+    process.cwd(),
+    "out",
+    datos.caso,
+  );
+
+  const carpetaPaquete = join(
+    carpetaCaso,
+    "paquete",
+  );
+
+  const carpetaSoportes = join(
+    carpetaPaquete,
+    "soportes",
+  );
+
+  await mkdir(carpetaSoportes, {
+    recursive: true,
+  });
+
+  // Determinar cuál es el archivo principal del caso.
+  let archivoPrincipal: string;
+
+  if (
+    datos.caso === "co-industrias-delta" ||
+    datos.caso === "hn-agroexport-sula"
+  ) {
+    archivoPrincipal = "formulario.xlsx";
+  } else if (datos.caso === "ec-corp-andina") {
+    archivoPrincipal = "formulario.pdf";
+  } else {
+    archivoPrincipal = "portal-preparado.json";
+  }
+
+  // Copiar el archivo principal al paquete.
+  const origenPrincipal = join(
+    carpetaCaso,
+    archivoPrincipal,
+  );
+
+  const destinoPrincipal = join(
+    carpetaPaquete,
+    archivoPrincipal,
+  );
+
+  await copyFile(
+    origenPrincipal,
+    destinoPrincipal,
+  );
+
+  // Copiar solamente los soportes disponibles.
+  for (const soporte of soportes) {
+    if (
+      soporte.estado !== "DISPONIBLE" ||
+      !soporte.archivo
+    ) {
+      continue;
+    }
+
+    const origenSoporte = join(
+      process.cwd(),
+      "fixtures",
+      "reto-01",
+      "repositorio",
+      "soportes",
+      soporte.archivo,
+    );
+
+    const destinoSoporte = join(
+      carpetaSoportes,
+      soporte.archivo,
+    );
+
+    await copyFile(
+      origenSoporte,
+      destinoSoporte,
+    );
+  }
+
+  // Obtener campos que no pudieron completarse.
+  const camposFaltantes = campos
+    .filter((campo) => !campo.encontrado)
+    .map((campo) => campo.etiqueta);
+
+  // Obtener soportes faltantes o vencidos.
+  const soportesProblematicos = soportes
+    .filter(
+      (soporte) =>
+        soporte.estado === "FALTANTE" ||
+        soporte.estado === "VENCIDO",
+    )
+    .map((soporte) => ({
+      tipo: soporte.tipo,
+      estado: soporte.estado,
+    }));
+
+  // Determinar si hace falta revisión humana.
+  const requiereRevisionHumana =
+    camposFaltantes.length > 0 ||
+    soportesProblematicos.length > 0 ||
+    solicitud.formato === "portal";
+
+  // Crear checklist del paquete.
+  const checklist = {
+    caso: datos.caso,
+    cliente: solicitud.cliente,
+    pais: solicitud.pais,
+    formato: solicitud.formato,
+
+    archivoPrincipal,
+
+    campos: {
+      total: campos.length,
+      encontrados: campos.filter(
+        (campo) => campo.encontrado,
+      ).length,
+      faltantes: camposFaltantes,
+    },
+
+    soportes: soportes.map((soporte) => ({
+      tipo: soporte.tipo,
+      estado: soporte.estado,
+      archivo: soporte.archivo,
+      vigenciaHasta: soporte.vigenciaHasta,
+    })),
+
+    soportesProblematicos,
+
+    requiereRevisionHumana,
+
+    estadoPaquete: requiereRevisionHumana
+      ? "REQUIERE_REVISION"
+      : "LISTO_PARA_REVISION_FINAL",
+  };
+
+  // Guardar checklist.json.
+  const rutaChecklist = join(
+    carpetaPaquete,
+    "checklist.json",
+  );
+
+  await writeFile(
+    rutaChecklist,
+    JSON.stringify(checklist, null, 2),
+    "utf-8",
+  );
+
+  return carpetaPaquete;
 }
