@@ -1,4 +1,4 @@
-import {
+/*import {
   proveedor_leer_solicitud,
   proveedor_mapear_campos,
 } from "./tools/proveedor.js";
@@ -23,6 +23,42 @@ async function main() {
       campo.valor,
     );
   }
+}
+
+main().catch((error) => {
+  console.error("Error:", error);
+  process.exit(1);
+});*/
+
+/*import {
+  proveedor_generar_formulario,
+} from "./tools/proveedor.js";
+
+async function main() {
+  const archivo = await proveedor_generar_formulario({
+    caso: "hn-agroexport-sula",
+  });
+
+  console.log("Formulario generado correctamente:");
+  console.log(archivo);
+}
+
+main().catch((error) => {
+  console.error("Error:", error);
+  process.exit(1);
+});
+*/
+import {
+  proveedor_generar_pdf,
+} from "./tools/proveedor.js";
+
+async function main() {
+  const archivo = await proveedor_generar_pdf({
+    caso: "ec-corp-andina",
+  });
+
+  console.log("PDF generado correctamente:");
+  console.log(archivo);
 }
 
 main().catch((error) => {

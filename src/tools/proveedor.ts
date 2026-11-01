@@ -1,6 +1,12 @@
-import { readFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { z } from "zod";
+import ExcelJS from "exceljs";
+import {
+  PDFDocument,
+  StandardFonts,
+  rgb,
+} from "pdf-lib";
 
 
 const LeerSolicitudSchema = z.object({
@@ -289,4 +295,307 @@ export async function proveedor_validar_soportes(
       vigenciaHasta: soporte.vigencia_hasta,
     };
   });
+}
+const GenerarFormularioSchema = z.object({
+  caso: z.enum([
+    "co-industrias-delta",
+    "hn-agroexport-sula",
+  ]),
+});
+
+export type GenerarFormularioInput = z.infer<
+  typeof GenerarFormularioSchema
+>;
+
+interface CampoCelda {
+  hoja: string;
+  celda_etiqueta: string;
+  etiqueta: string;
+  celda_valor: string;
+}
+
+export async function proveedor_generar_formulario(
+  input: GenerarFormularioInput,
+): Promise<string> {
+  const datos = GenerarFormularioSchema.parse(input);
+
+  const rutaPlantilla = join(
+    process.cwd(),
+    "fixtures",
+    "reto-01",
+    "casos",
+    datos.caso,
+    "plantilla-celdas.json",
+  );
+
+  const contenido = await readFile(rutaPlantilla, "utf-8");
+  const plantilla = JSON.parse(contenido) as CampoCelda[];
+
+  const camposMapeados = await proveedor_mapear_campos({
+    caso: datos.caso,
+  });
+
+  const libro = new ExcelJS.Workbook();
+
+  for (const campo of plantilla) {
+    let hoja = libro.getWorksheet(campo.hoja);
+
+    if (!hoja) {
+      hoja = libro.addWorksheet(campo.hoja);
+    }
+
+    hoja.getCell(campo.celda_etiqueta).value = campo.etiqueta;
+
+    const mapeado = camposMapeados.find(
+      (item) => item.etiqueta === campo.etiqueta,
+    );
+
+    hoja.getCell(campo.celda_valor).value =
+      mapeado?.encontrado
+        ? String(mapeado.valor)
+        : "FALTANTE";
+
+    hoja.getCell(campo.celda_etiqueta).font = {
+      bold: true,
+    };
+
+    hoja.getColumn(
+      hoja.getCell(campo.celda_etiqueta).col,
+    ).width = 32;
+
+    hoja.getColumn(
+      hoja.getCell(campo.celda_valor).col,
+    ).width = 55;
+  }
+
+  const carpetaSalida = join(
+    process.cwd(),
+    "out",
+    datos.caso,
+  );
+
+  await mkdir(carpetaSalida, {
+    recursive: true,
+  });
+
+  const rutaSalida = join(
+    carpetaSalida,
+    "formulario.xlsx",
+  );
+
+  await libro.xlsx.writeFile(rutaSalida);
+
+  return rutaSalida;
+}
+
+const GenerarPdfSchema = z.object({
+  caso: z.literal("ec-corp-andina"),
+});
+
+export type GenerarPdfInput = z.infer<
+  typeof GenerarPdfSchema
+>;
+
+interface CampoPdf {
+  etiqueta: string;
+  obligatorio: boolean;
+}
+
+export async function proveedor_generar_pdf(
+  input: GenerarPdfInput,
+): Promise<string> {
+  const datos = GenerarPdfSchema.parse(input);
+
+  const rutaPlantilla = join(
+    process.cwd(),
+    "fixtures",
+    "reto-01",
+    "casos",
+    datos.caso,
+    "plantilla-campos.json",
+  );
+
+  const contenidoPlantilla = await readFile(
+    rutaPlantilla,
+    "utf-8",
+  );
+
+  const plantilla = JSON.parse(
+    contenidoPlantilla,
+  ) as CampoPdf[];
+
+  const camposMapeados = await proveedor_mapear_campos({
+    caso: datos.caso,
+  });
+
+  const pdf = await PDFDocument.create();
+
+  const pagina = pdf.addPage([595.28, 841.89]);
+
+  const fuenteNormal = await pdf.embedFont(
+    StandardFonts.Helvetica,
+  );
+
+  const fuenteNegrita = await pdf.embedFont(
+    StandardFonts.HelveticaBold,
+  );
+
+  const anchoPagina = pagina.getWidth();
+
+  let y = pagina.getHeight() - 60;
+
+  /*
+   * Título
+   */
+  pagina.drawText("FORMULARIO DE CALIFICACION DE PROVEEDOR", {
+    x: 45,
+    y,
+    size: 16,
+    font: fuenteNegrita,
+    color: rgb(0.1, 0.2, 0.45),
+  });
+
+  y -= 25;
+
+  pagina.drawText(
+    "Reto 01 - Registro como Proveedor",
+    {
+      x: 45,
+      y,
+      size: 10,
+      font: fuenteNormal,
+      color: rgb(0.35, 0.35, 0.35),
+    },
+  );
+
+  y -= 35;
+
+  /*
+   * Línea separadora
+   */
+  pagina.drawLine({
+    start: { x: 45, y },
+    end: { x: anchoPagina - 45, y },
+    thickness: 1,
+    color: rgb(0.75, 0.75, 0.75),
+  });
+
+  y -= 25;
+
+  /*
+   * Campos del fixture
+   */
+  for (const campoPlantilla of plantilla) {
+    const campoMapeado = camposMapeados.find(
+      (campo) =>
+        campo.etiqueta === campoPlantilla.etiqueta,
+    );
+
+    const encontrado =
+      campoMapeado?.encontrado === true;
+
+    const valor = encontrado
+      ? String(campoMapeado?.valor ?? "")
+      : "FALTANTE";
+
+    /*
+     * Etiqueta
+     */
+    pagina.drawText(campoPlantilla.etiqueta, {
+      x: 45,
+      y,
+      size: 9,
+      font: fuenteNegrita,
+      color: rgb(0.15, 0.15, 0.15),
+    });
+
+    /*
+     * Indicador obligatorio/opcional
+     */
+    pagina.drawText(
+      campoPlantilla.obligatorio
+        ? "Obligatorio"
+        : "Opcional",
+      {
+        x: 430,
+        y,
+        size: 7,
+        font: fuenteNormal,
+        color: campoPlantilla.obligatorio
+          ? rgb(0.55, 0.1, 0.1)
+          : rgb(0.3, 0.3, 0.3),
+      },
+    );
+
+    y -= 15;
+
+    /*
+     * Valor
+     */
+    pagina.drawText(valor, {
+      x: 55,
+      y,
+      size: 9,
+      font: fuenteNormal,
+      color: encontrado
+        ? rgb(0, 0, 0)
+        : rgb(0.8, 0, 0),
+      maxWidth: anchoPagina - 110,
+    });
+
+    y -= 15;
+
+    /*
+     * Separador
+     */
+    pagina.drawLine({
+      start: { x: 45, y },
+      end: { x: anchoPagina - 45, y },
+      thickness: 0.4,
+      color: rgb(0.85, 0.85, 0.85),
+    });
+
+    y -= 18;
+  }
+
+  /*
+   * Nota final
+   */
+  pagina.drawText(
+    "Los campos marcados como FALTANTE requieren revision humana.",
+    {
+      x: 45,
+      y: 35,
+      size: 8,
+      font: fuenteNormal,
+      color: rgb(0.4, 0.4, 0.4),
+    },
+  );
+
+  /*
+   * Carpeta de salida
+   */
+  const carpetaSalida = join(
+    process.cwd(),
+    "out",
+    datos.caso,
+  );
+
+  await mkdir(carpetaSalida, {
+    recursive: true,
+  });
+
+  const rutaSalida = join(
+    carpetaSalida,
+    "formulario.pdf",
+  );
+
+  const bytesPdf = await pdf.save();
+
+  await writeFile(
+    rutaSalida,
+    Buffer.from(bytesPdf),
+  );
+
+  return rutaSalida;
 }
