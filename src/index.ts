@@ -1,12 +1,28 @@
-import { proveedor_leer_solicitud } from "./tools/proveedor.js";
+import {
+  proveedor_leer_solicitud,
+  proveedor_mapear_campos,
+} from "./tools/proveedor.js";
 
 async function main() {
-  const solicitud = await proveedor_leer_solicitud({
-    caso: "co-industrias-delta",
-  });
+  const caso = "pa-logistica-istmo" as const;
 
-  console.log("Solicitud cargada correctamente:");
-  console.log(JSON.stringify(solicitud, null, 2));
+  const solicitud = await proveedor_leer_solicitud({ caso });
+  const campos = await proveedor_mapear_campos({ caso });
+
+  console.log("\n=== SOLICITUD ===");
+  console.log(`${solicitud.cliente} - ${solicitud.pais}`);
+  console.log(`Formato: ${solicitud.formato}`);
+
+  console.log("\n=== CAMPOS MAPEADOS ===");
+
+  for (const campo of campos) {
+    const estado = campo.encontrado ? "OK" : "FALTANTE";
+
+    console.log(
+      `[${estado}] ${campo.etiqueta} -> ${campo.rutaMaestro ?? "sin mapeo"} ->`,
+      campo.valor,
+    );
+  }
 }
 
 main().catch((error) => {
