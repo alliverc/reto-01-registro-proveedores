@@ -82,7 +82,7 @@ async function main() {
 main().catch((error) => {
   console.error("Error:", error);
   process.exit(1);
-});*/
+});
 import {
   proveedor_armar_paquete,
 } from "./tools/proveedor.js";
@@ -98,5 +98,23 @@ async function main() {
 
 main().catch((error) => {
   console.error("Error:", error);
+  process.exit(1);
+});*/
+
+import { probarGemini } from "./llm/gemini.js";
+
+async function main() {
+  console.log("Probando conexión con Gemini...");
+
+  const respuesta = await probarGemini();
+
+  console.log("Respuesta:");
+  console.log(respuesta);
+}
+
+main().catch((error) => {
+  console.error("Error probando Gemini:");
+  console.error(error);
+
   process.exit(1);
 });
